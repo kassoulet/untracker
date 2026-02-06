@@ -68,7 +68,6 @@ Advanced usage with options:
 - `-o OUTPUT_DIR`: Output directory (required)
 - `--sample-rate RATE`: Sample rate (default: 44100)
 - `--channels NUM`: Number of channels (default: 2)
-- `--buffer-size SIZE`: Buffer size (default: 4096)
 - `--bass-boost MB`: Bass boost in millibels (default: 0)
 - `--resample METHOD`: Resampling method: nearest, linear, cubic, sinc (default: sinc)
 - `--format FORMAT`: Output format: wav, flac, ogg, vorbis (default: wav)

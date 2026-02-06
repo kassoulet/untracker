@@ -13,7 +13,6 @@
 struct AudioOptions {
   int sample_rate = 44100;
   int channels = 2; // Stereo
-  int buffer_size = 4096;
   int interpolation_filter = 4;      // cubic interpolation (sinc-like)
   std::string output_format = "wav"; // wav, flac, opus, vorbis
   int bit_depth = 16;                // for lossless formats
@@ -220,7 +219,8 @@ public:
 
       // First, check if this instrument/sample produces any audio
       // by rendering the entire module to see if there's any non-zero data
-      std::vector<float> preview_buffer(options.buffer_size * options.channels);
+      const int BUFFER_SIZE = 4096;
+      std::vector<float> preview_buffer(BUFFER_SIZE * options.channels);
       bool has_any_audio = false;
 
       // Temporarily reset position to check for audio
@@ -228,7 +228,7 @@ public:
 
       while (true) {
         int samples_read = mod->read_interleaved_stereo(
-            options.sample_rate, options.buffer_size, preview_buffer.data());
+            options.sample_rate, BUFFER_SIZE, preview_buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -273,11 +273,11 @@ public:
 
       // Only create the output file if we know there's audio to write
       // Render the module with only this instrument active
-      std::vector<float> buffer(options.buffer_size * options.channels);
+      std::vector<float> buffer(BUFFER_SIZE * options.channels);
 
       while (true) {
         int samples_read = mod->read_interleaved_stereo(
-            options.sample_rate, options.buffer_size, buffer.data());
+            options.sample_rate, BUFFER_SIZE, buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -350,8 +350,6 @@ AudioOptions parseArguments(int argc, char * const argv[], std::string &input_fi
       opts.sample_rate = std::stoi(argv[++i]);
     } else if (arg == "--channels" && i + 1 < argc) {
       opts.channels = std::stoi(argv[++i]);
-    } else if (arg == "--buffer-size" && i + 1 < argc) {
-      opts.buffer_size = std::stoi(argv[++i]);
     } else if (arg == "--resample" && i + 1 < argc) {
       std::string resample_method = argv[++i];
       if (resample_method == "linear")
@@ -385,7 +383,6 @@ AudioOptions parseArguments(int argc, char * const argv[], std::string &input_fi
           << "  --sample-rate RATE         Sample rate (default: 44100)\n";
       std::cout
           << "  --channels NUM             Number of channels (default: 2)\n";
-      std::cout << "  --buffer-size SIZE         Buffer size (default: 4096)\n";
       std::cout << "  --resample METHOD          Resampling method: nearest, "
                    "linear, cubic, sinc (default: sinc)\n";
       std::cout << "  --format FORMAT            Output format: wav, flac, "
