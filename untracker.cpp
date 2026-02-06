@@ -81,19 +81,33 @@ public:
       }
     }
 
-    // Get instrument names
-    std::vector<std::string> instrument_names = mod->get_instrument_names();
+    std::vector<std::string> names;
+    
+    // Get instrument names or sample names depending on the file type
+    if (using_samples) {
+        // For MOD files and other formats that use samples, get sample names
+        try {
+            // Use the proper libopenmpt API to get all sample names at once
+            names = mod->get_sample_names();
+        } catch (...) {
+            // If getting sample names fails, initialize with empty strings
+            names.assign(num_instruments, "");
+        }
+    } else {
+        // For formats that use instruments, get instrument names normally
+        names = mod->get_instrument_names();
+    }
 
     for (int idx = 0; idx < num_instruments; ++idx) {
       // Determine the name for this instrument/sample/channel
       std::string name;
-      if (idx < instrument_names.size() && !instrument_names[idx].empty()) {
-        name = instrument_names[idx];
+      if (idx < names.size() && !names[idx].empty()) {
+        name = names[idx];
       } else {
         if (using_samples) {
-          name = "sample_" + std::to_string(idx);
+          name = "sample_" + std::to_string(idx+1);
         } else {
-          name = "instrument_" + std::to_string(idx);
+          name = "instrument_" + std::to_string(idx+1);
         }
       }
 
