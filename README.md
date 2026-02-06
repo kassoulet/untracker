@@ -1,6 +1,16 @@
-# Untracker
+# Untracker - Render Stems from Tracker Modules
 
-This program extracts individual stems from tracker module files (MOD, XM, IT, S3M, etc.) using libopenmpt. It works by soloing each instrument/sample and rendering the audio separately.
+```
+               __
+  __ __  _____/  |_____________    ____ |  | __ ___________
+ |  |  \/    \   __\_  __ \__  \ _/ ___\|  |/ // __ \_  __ \
+ |  |  /   |  \  |  |  | \// __ \\  \___|    <\  ___/|  | \/
+ |____/|___|  /__|  |__|  (____  /\___  >__|_ \\___  >__|
+            \/                 \/     \/     \/    \/
+```
+
+
+This program renders individual stems from tracker module files (MOD, XM, IT, S3M, etc.) using libopenmpt.
 
 ## Dependencies
 
@@ -85,12 +95,3 @@ The program supports all formats supported by libopenmpt, including:
 - WAV (default) - Lossless, supports 16/24-bit
 - FLAC - Lossless compression, supports 16/24-bit
 - OGG/Vorbis - Lossy compression with variable quality settings
-
-## How It Works
-
-The program:
-1. Loads the module file using libopenmpt's extended module interface
-2. Identifies all instruments in the module
-3. For each instrument, mutes all others and renders the audio
-4. Applies selected audio processing (resampling)
-5. Saves each stem in the selected format with naming convention: `{module name}-001-{instrument name}.{format}`
