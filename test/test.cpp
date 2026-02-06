@@ -90,13 +90,21 @@ std::vector<std::string> findFilesWithExtension(const std::string& directory, co
 }
 
 // Helper function to verify WAV file format
-void verifyWavFormat(const std::string& filepath) {
+void verifyWavFormat(const std::string& filepath, int expected_bit_depth = 16) {
     std::string file_type = getFileType(filepath);
     std::cout << "  File type verification: " << file_type << std::endl;
 
     bool is_wav = (file_type.find("WAV") != std::string::npos || file_type.find("RIFF") != std::string::npos);
     bool has_correct_sample_rate = (file_type.find("44100 Hz") != std::string::npos || file_type.find("48000 Hz") != std::string::npos);
-    bool has_correct_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+    bool has_expected_bit_depth = false;
+    
+    if (expected_bit_depth == 16) {
+        has_expected_bit_depth = (file_type.find("16 bit") != std::string::npos);
+    } else if (expected_bit_depth == 24) {
+        has_expected_bit_depth = (file_type.find("24 bit") != std::string::npos);
+    } else {
+        has_expected_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+    }
 
     if (is_wav) {
         std::cout << "  ✓ File format verified as WAV" << std::endl;
@@ -110,21 +118,36 @@ void verifyWavFormat(const std::string& filepath) {
         std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
     }
 
-    if (has_correct_bit_depth) {
-        std::cout << "  ✓ Bit depth verified (16-bit or 24-bit)" << std::endl;
+    if (has_expected_bit_depth) {
+        std::cout << "  ✓ Bit depth verified (" << expected_bit_depth << "-bit)" << std::endl;
     } else {
         std::cout << "  ⚠ Unexpected bit depth: " << file_type << std::endl;
+    }
+    
+    // Check if both sample rate and bit depth are correct
+    if (has_correct_sample_rate && has_expected_bit_depth) {
+        std::cout << "  ✓ Both sample rate and bit depth verified" << std::endl;
+    } else {
+        std::cout << "  ⚠ Missing expected sample rate or bit depth" << std::endl;
     }
 }
 
 // Helper function to verify FLAC file format
-void verifyFlacFormat(const std::string& filepath) {
+void verifyFlacFormat(const std::string& filepath, int expected_bit_depth = 16) {
     std::string file_type = getFileType(filepath);
     std::cout << "  File type verification: " << file_type << std::endl;
 
     bool is_flac = (file_type.find("FLAC") != std::string::npos);
     bool has_correct_sample_rate = (file_type.find("44.1 kHz") != std::string::npos || file_type.find("48 kHz") != std::string::npos);
-    bool has_correct_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+    bool has_expected_bit_depth = false;
+    
+    if (expected_bit_depth == 16) {
+        has_expected_bit_depth = (file_type.find("16 bit") != std::string::npos);
+    } else if (expected_bit_depth == 24) {
+        has_expected_bit_depth = (file_type.find("24 bit") != std::string::npos);
+    } else {
+        has_expected_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+    }
 
     if (is_flac) {
         std::cout << "  ✓ File format verified as FLAC" << std::endl;
@@ -138,15 +161,22 @@ void verifyFlacFormat(const std::string& filepath) {
         std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
     }
 
-    if (has_correct_bit_depth) {
-        std::cout << "  ✓ Bit depth verified (16-bit or 24-bit)" << std::endl;
+    if (has_expected_bit_depth) {
+        std::cout << "  ✓ Bit depth verified (" << expected_bit_depth << "-bit)" << std::endl;
     } else {
         std::cout << "  ⚠ Unexpected bit depth: " << file_type << std::endl;
+    }
+
+    // Check if both sample rate and bit depth are correct
+    if (has_correct_sample_rate && has_expected_bit_depth) {
+        std::cout << "  ✓ Both sample rate and bit depth verified" << std::endl;
+    } else {
+        std::cout << "  ⚠ Missing expected sample rate or bit depth" << std::endl;
     }
 }
 
 // Helper function to verify Opus file format
-void verifyOpusFormat(const std::string& filepath) {
+void verifyOpusFormat(const std::string& filepath, int expected_bit_depth = 16) {
     std::string file_type = getFileType(filepath);
     std::cout << "  File type verification: " << file_type << std::endl;
 
@@ -163,6 +193,13 @@ void verifyOpusFormat(const std::string& filepath) {
         std::cout << "  ✓ Sample rate verified (48kHz)" << std::endl;
     } else {
         std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
+    }
+
+    // Check if sample rate is correct for Opus
+    if (has_correct_sample_rate) {
+        std::cout << "  ✓ Both sample rate and format verified" << std::endl;
+    } else {
+        std::cout << "  ⚠ Missing expected sample rate" << std::endl;
     }
 }
 
@@ -210,7 +247,7 @@ int main(int argc, char* argv[]) {
 
         // Verify file formats using 'file' utility
         if (!wav_files.empty()) {
-            verifyWavFormat(wav_files[0]);
+            verifyWavFormat(wav_files[0], 16); // Default to 16-bit
         }
     } else {
         std::cerr << "✗ Basic extraction failed" << std::endl;
@@ -231,7 +268,7 @@ int main(int argc, char* argv[]) {
 
         // Verify file formats using 'file' utility
         if (!wav_files2.empty()) {
-            verifyWavFormat(wav_files2[0]);
+            verifyWavFormat(wav_files2[0], 16); // Default to 16-bit
         }
     } else {
         std::cerr << "✗ High sample rate extraction failed" << std::endl;
@@ -251,7 +288,7 @@ int main(int argc, char* argv[]) {
 
         // Verify file formats using 'file' utility
         if (!flac_files.empty()) {
-            verifyFlacFormat(flac_files[0]);
+            verifyFlacFormat(flac_files[0], 16); // Default to 16-bit
         }
     } else {
         std::cerr << "✗ FLAC format extraction failed" << std::endl;
@@ -271,7 +308,7 @@ int main(int argc, char* argv[]) {
 
         // Verify file formats using 'file' utility
         if (!wav_files4.empty()) {
-            verifyWavFormat(wav_files4[0]);
+            verifyWavFormat(wav_files4[0], 16); // Default to 16-bit
         }
     } else {
         std::cerr << "✗ Sinc resampling extraction failed" << std::endl;
@@ -291,11 +328,31 @@ int main(int argc, char* argv[]) {
 
         // Verify file formats using 'file' utility
         if (!opus_files.empty()) {
-            verifyOpusFormat(opus_files[0]);
+            verifyOpusFormat(opus_files[0], 16); // Default to 16-bit
         }
     } else {
         std::cerr << "✗ Opus format extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir5);
+    }
+
+    // Test 6: Extraction with 24-bit depth
+    std::string output_dir6 = output_dir + "_24bit";
+    std::filesystem::create_directory(output_dir6);
+    std::string cmd6 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir6 + "\" --format flac --bit-depth 24";
+    if (runCommand(cmd6, "Test 6: Extraction with 24-bit depth")) {
+        std::cout << "✓ 24-bit depth extraction completed successfully" << std::endl;
+
+        // Count extracted files in subdirectories
+        std::vector<std::string> flac_files6 = findFilesWithExtension(output_dir6, ".flac");
+        std::cout << "  Extracted " << flac_files6.size() << " stem files with 24-bit depth" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!flac_files6.empty()) {
+            verifyFlacFormat(flac_files6[0], 24); // Expect 24-bit
+        }
+    } else {
+        std::cerr << "✗ 24-bit depth extraction failed" << std::endl;
+        std::filesystem::remove_all(output_dir6);
     }
 
     // Cleanup
