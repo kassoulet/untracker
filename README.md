@@ -18,12 +18,13 @@ This program renders individual stems from tracker module files (MOD, XM, IT, S3
 - libsndfile (For audio file I/O)
 - FLAC development libraries (optional, for FLAC support)
 - Vorbis development libraries (optional, for OGG/Vorbis support)
+- Opus development libraries (optional, for OGG/Opus support)
 - C++17 compatible compiler
 - Meson build system and Ninja (for building with Meson/Ninja)
 
 On Ubuntu/Debian systems, install dependencies with:
 ```bash
-sudo apt-get install libopenmpt-dev libsndfile1-dev libflac-dev libvorbis-dev meson ninja-build
+sudo apt-get install libopenmpt-dev libsndfile1-dev libflac-dev libvorbis-dev libopus-dev meson ninja-build
 ```
 
 On other distributions, use the equivalent package manager.
@@ -99,3 +100,8 @@ The program supports all formats supported by libopenmpt, including:
 - FLAC - Lossless compression, supports 16/24-bit
 - OGG/Vorbis - Lossy compression with variable quality settings
 - OGG/Opus - Lossy compression with variable bitrate settings
+
+## Next Steps
+- Add options for start and stop positions for rendering specific sections of the module
+- Add channel mode
+
