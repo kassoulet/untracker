@@ -120,13 +120,13 @@ int main(int argc, char* argv[]) {
     std::cout << "\nTest 4: Extraction with sinc resampling..." << std::endl;
     std::string output_dir4 = output_dir + "_sinc";
     std::filesystem::create_directory(output_dir4);
-    
+
     std::string cmd4 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir4 + "\" --resample sinc";
     int result4 = std::system(cmd4.c_str());
-    
+
     if (result4 == 0) {
         std::cout << "✓ Sinc resampling extraction completed successfully" << std::endl;
-        
+
         // Count extracted files
         int file_count4 = 0;
         for (const auto& entry : std::filesystem::directory_iterator(output_dir4)) {
@@ -138,6 +138,30 @@ int main(int argc, char* argv[]) {
     } else {
         std::cerr << "✗ Sinc resampling extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir4);
+    }
+
+    // Test 5: Extraction with Opus format
+    std::cout << "\nTest 5: Extraction with Opus format..." << std::endl;
+    std::string output_dir5 = output_dir + "_opus";
+    std::filesystem::create_directory(output_dir5);
+
+    std::string cmd5 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir5 + "\" --format opus --opus-bitrate 96";
+    int result5 = std::system(cmd5.c_str());
+
+    if (result5 == 0) {
+        std::cout << "✓ Opus format extraction completed successfully" << std::endl;
+
+        // Count extracted files
+        int file_count5 = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(output_dir5)) {
+            if (entry.path().extension() == ".opus") {
+                file_count5++;
+            }
+        }
+        std::cout << "  Extracted " << file_count5 << " stem files in Opus format" << std::endl;
+    } else {
+        std::cerr << "✗ Opus format extraction failed" << std::endl;
+        std::filesystem::remove_all(output_dir5);
     }
     
     // Cleanup

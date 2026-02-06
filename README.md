@@ -63,6 +63,9 @@ Advanced usage with options:
 
 # Extract in OGG Vorbis format with high quality
 ./build/untracker -i song.xm -o ./stems/ --format vorbis --vorbis-quality 9
+
+# Extract in OGG Opus format with custom bitrate
+./build/untracker -i song.xm -o ./stems/ --format opus --opus-bitrate 192
 ```
 
 ### Available Options:
@@ -71,8 +74,9 @@ Advanced usage with options:
 - `--sample-rate RATE`: Sample rate (default: 44100)
 - `--channels NUM`: Number of channels (default: 2)
 - `--resample METHOD`: Resampling method: nearest, linear, cubic, sinc (default: sinc)
-- `--format FORMAT`: Output format: wav, flac, ogg, vorbis (default: wav)
+- `--format FORMAT`: Output format: wav, flac, ogg, vorbis, opus (default: wav)
 - `--bit-depth DEPTH`: Bit depth for lossless formats (16 or 24, default: 16)
+- `--opus-bitrate BITRATE`: Bitrate for Opus format in kbps (default: 128)
 - `--vorbis-quality LEVEL`: Vorbis quality level (0-10, default: 5)
 
 ## Supported Formats
@@ -94,3 +98,4 @@ The program supports all formats supported by libopenmpt, including:
 - WAV (default) - Lossless, supports 16/24-bit
 - FLAC - Lossless compression, supports 16/24-bit
 - OGG/Vorbis - Lossy compression with variable quality settings
+- OGG/Opus - Lossy compression with variable bitrate settings

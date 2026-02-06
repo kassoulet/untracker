@@ -208,6 +208,8 @@ public:
       } else if (options.output_format == "ogg" ||
                  options.output_format == "vorbis") {
         sf_info.format = SF_FORMAT_OGG | SF_FORMAT_VORBIS;
+      } else if (options.output_format == "opus") {
+        sf_info.format = SF_FORMAT_OGG | SF_FORMAT_OPUS;
       } else {
         // Default to WAV if format is not recognized
         sf_info.format =
@@ -386,7 +388,7 @@ AudioOptions parseArguments(int argc, char * const argv[], std::string &input_fi
       std::cout << "  --resample METHOD          Resampling method: nearest, "
                    "linear, cubic, sinc (default: sinc)\n";
       std::cout << "  --format FORMAT            Output format: wav, flac, "
-                   "ogg, vorbis (default: wav)\n";
+                   "ogg, vorbis, opus (default: wav)\n";
       std::cout << "  --bit-depth DEPTH          Bit depth for lossless "
                    "formats (16 or 24, default: 16)\n";
       std::cout << "  --vorbis-quality LEVEL     Vorbis quality level (0-10, "
@@ -394,9 +396,7 @@ AudioOptions parseArguments(int argc, char * const argv[], std::string &input_fi
       std::cout << "  --help                     Show this help\n";
       std::cout << "\nSupported input formats: MOD, XM, IT, S3M, and other "
                    "tracker formats supported by libopenmpt\n";
-      std::cout << "Supported output formats: WAV, FLAC, OGG/Vorbis\n";
-      std::cout << "Note: Opus format is not directly supported by libsndfile, "
-                   "use OGG/Vorbis instead.\n";
+      std::cout << "Supported output formats: WAV, FLAC, OGG/Vorbis, Opus\n";
       exit(0);
     }
   }

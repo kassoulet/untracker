@@ -93,7 +93,7 @@ The program supports all formats supported by libopenmpt, including:
 - WAV (default) - Lossless, supports 16/24-bit
 - FLAC - Lossless compression, supports 16/24-bit
 - OGG/Vorbis - Lossy compression with variable quality settings
-- Note: Opus format is not directly supported by libsndfile, use OGG/Vorbis instead
+- OGG/Opus - Lossy compression with variable bitrate settings
 
 ## How It Works
 
@@ -158,7 +158,6 @@ The project now uses Meson/Ninja build system:
 - Some older module formats may not support instrument-level muting
 - Very large modules may consume significant memory during processing
 - The quality of extracted stems depends on how instruments are arranged in the original module
-- Opus format is not directly supported by libsndfile; use OGG/Vorbis instead
 
 ## Troubleshooting
 
