@@ -3,171 +3,305 @@
 #include <filesystem>
 #include <cstdlib>
 #include <string>
+#include <sstream>
+#include <fstream>
+#include <vector>
+#include <random>
+
+// Constants
+const std::string UNTRACKER_EXECUTABLE = "untracker";
+const std::string DEFAULT_TEST_MODULES_DIR = "./modules/";
+const std::string OUTPUT_DIR_PREFIX = "./test_output_";
+
+// Helper function to get file type using the 'file' command
+std::string getFileType(const std::string& filepath) {
+    std::string command = "file -b \"" + filepath + "\" 2>/dev/null";
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        return "unknown";
+    }
+
+    char buffer[128];
+    std::string result = "";
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+    pclose(pipe);
+
+    // Remove trailing newline if present
+    if (!result.empty() && result.back() == '\n') {
+        result.pop_back();
+    }
+    return result;
+}
+
+// Helper function to find the untracker executable
+std::string findExecutable() {
+    std::vector<std::string> possible_paths = {
+        "./build/" + UNTRACKER_EXECUTABLE,
+        "../build/" + UNTRACKER_EXECUTABLE,
+        "../../build/" + UNTRACKER_EXECUTABLE
+    };
+
+    for (const auto& path : possible_paths) {
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
+    }
+
+    std::cerr << "ERROR: untracker executable not found!" << std::endl;
+    std::cerr << "Please build the project first with 'make' or 'meson build && ninja -C build'" << std::endl;
+    return "";
+}
+
+// Helper function to find the test module file
+std::string findModuleFile(const std::string& module_arg) {
+    // Check if the module file exists in the current location
+    if (std::filesystem::exists(module_arg)) {
+        return module_arg;
+    }
+
+    // Check if the module file exists in the modules subdirectory
+    std::string modules_path = DEFAULT_TEST_MODULES_DIR + module_arg;
+    if (std::filesystem::exists(modules_path)) {
+        return modules_path;
+    }
+
+    std::cerr << "ERROR: Test module file '" << module_arg << "' not found in current directory or modules subdirectory!" << std::endl;
+    return "";
+}
+
+// Helper function to run a command and return success status
+bool runCommand(const std::string& command, const std::string& test_name) {
+    std::cout << "\n" << test_name << "..." << std::endl;
+    int result = std::system(command.c_str());
+    return result == 0;
+}
+
+// Helper function to count files with specific extension in a directory
+std::vector<std::string> findFilesWithExtension(const std::string& directory, const std::string& extension) {
+    std::vector<std::string> files;
+    for (const auto& dir_entry : std::filesystem::recursive_directory_iterator(directory)) {
+        if (dir_entry.path().extension() == extension) {
+            files.push_back(dir_entry.path().string());
+        }
+    }
+    return files;
+}
+
+// Helper function to verify WAV file format
+void verifyWavFormat(const std::string& filepath) {
+    std::string file_type = getFileType(filepath);
+    std::cout << "  File type verification: " << file_type << std::endl;
+
+    bool is_wav = (file_type.find("WAV") != std::string::npos || file_type.find("RIFF") != std::string::npos);
+    bool has_correct_sample_rate = (file_type.find("44100 Hz") != std::string::npos || file_type.find("48000 Hz") != std::string::npos);
+    bool has_correct_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+
+    if (is_wav) {
+        std::cout << "  ✓ File format verified as WAV" << std::endl;
+    } else {
+        std::cout << "  ⚠ File format may not be WAV: " << file_type << std::endl;
+    }
+
+    if (has_correct_sample_rate) {
+        std::cout << "  ✓ Sample rate verified (44.1kHz or 48kHz)" << std::endl;
+    } else {
+        std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
+    }
+
+    if (has_correct_bit_depth) {
+        std::cout << "  ✓ Bit depth verified (16-bit or 24-bit)" << std::endl;
+    } else {
+        std::cout << "  ⚠ Unexpected bit depth: " << file_type << std::endl;
+    }
+}
+
+// Helper function to verify FLAC file format
+void verifyFlacFormat(const std::string& filepath) {
+    std::string file_type = getFileType(filepath);
+    std::cout << "  File type verification: " << file_type << std::endl;
+
+    bool is_flac = (file_type.find("FLAC") != std::string::npos);
+    bool has_correct_sample_rate = (file_type.find("44.1 kHz") != std::string::npos || file_type.find("48 kHz") != std::string::npos);
+    bool has_correct_bit_depth = (file_type.find("16 bit") != std::string::npos || file_type.find("24 bit") != std::string::npos);
+
+    if (is_flac) {
+        std::cout << "  ✓ File format verified as FLAC" << std::endl;
+    } else {
+        std::cout << "  ⚠ File format may not be FLAC: " << file_type << std::endl;
+    }
+
+    if (has_correct_sample_rate) {
+        std::cout << "  ✓ Sample rate verified (44.1kHz or 48kHz)" << std::endl;
+    } else {
+        std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
+    }
+
+    if (has_correct_bit_depth) {
+        std::cout << "  ✓ Bit depth verified (16-bit or 24-bit)" << std::endl;
+    } else {
+        std::cout << "  ⚠ Unexpected bit depth: " << file_type << std::endl;
+    }
+}
+
+// Helper function to verify Opus file format
+void verifyOpusFormat(const std::string& filepath) {
+    std::string file_type = getFileType(filepath);
+    std::cout << "  File type verification: " << file_type << std::endl;
+
+    bool is_opus = (file_type.find("Opus") != std::string::npos || file_type.find("Ogg") != std::string::npos);
+    bool has_correct_sample_rate = (file_type.find("48000 Hz") != std::string::npos || file_type.find("48 kHz") != std::string::npos);
+
+    if (is_opus) {
+        std::cout << "  ✓ File format verified as Opus" << std::endl;
+    } else {
+        std::cout << "  ⚠ File format may not be Opus: " << file_type << std::endl;
+    }
+
+    if (has_correct_sample_rate) {
+        std::cout << "  ✓ Sample rate verified (48kHz)" << std::endl;
+    } else {
+        std::cout << "  ⚠ Unexpected sample rate: " << file_type << std::endl;
+    }
+}
 
 int main(int argc, char* argv[]) {
     std::cout << "=== Untracker Integration Test ===" << std::endl;
-    
-    // Check if the executable exists
-    std::string exe_path;
-    if (std::filesystem::exists("./build/untracker")) {
-        exe_path = "./build/untracker";
-    } else if (std::filesystem::exists("../build/untracker")) {
-        exe_path = "../build/untracker";
-    } else if (std::filesystem::exists("../../build/untracker")) {
-        exe_path = "../../build/untracker";
-    } else {
-        std::cerr << "ERROR: untracker executable not found!" << std::endl;
-        std::cerr << "Please build the project first with 'make' or 'meson build && ninja -C build'" << std::endl;
+
+    // Find the executable
+    std::string exe_path = findExecutable();
+    if (exe_path.empty()) {
         return 1;
     }
-    
     std::cout << "✓ untracker executable found at: " << exe_path << std::endl;
-    
+
     // Check if a test module file was provided
     if (argc < 2) {
         std::cerr << "USAGE: " << argv[0] << " <test_module_file>" << std::endl;
         std::cerr << "Example: " << argv[0] << " test_module.xm" << std::endl;
         return 1;
     }
-    
-    std::string test_module = argv[1];
-    
-    // Verify the test module exists
-    if (!std::filesystem::exists(test_module)) {
-        std::cerr << "ERROR: Test module file '" << test_module << "' not found!" << std::endl;
+
+    // Find the test module file
+    std::string test_module = findModuleFile(argv[1]);
+    if (test_module.empty()) {
         return 1;
     }
-    
     std::cout << "✓ Test module file found: " << test_module << std::endl;
-    
+
     // Create a temporary output directory for the test
-    std::string output_dir = "./test_output_" + std::to_string(std::rand() % 10000);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(1000, 9999);
+    std::string output_dir = OUTPUT_DIR_PREFIX + std::to_string(dis(gen));
     std::filesystem::create_directory(output_dir);
-    
+
     std::cout << "✓ Created temporary output directory: " << output_dir << std::endl;
     
     // Test 1: Basic extraction
-    std::cout << "\nTest 1: Basic stem extraction..." << std::endl;
     std::string cmd1 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir + "\"";
-    int result1 = std::system(cmd1.c_str());
-    
-    if (result1 == 0) {
+    if (runCommand(cmd1, "Test 1: Basic stem extraction")) {
         std::cout << "✓ Basic extraction completed successfully" << std::endl;
-        
-        // Count extracted files
-        int file_count = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(output_dir)) {
-            if (entry.path().extension() == ".wav") {
-                file_count++;
-            }
+
+        // Count extracted files in subdirectories
+        std::vector<std::string> wav_files = findFilesWithExtension(output_dir, ".wav");
+        std::cout << "  Extracted " << wav_files.size() << " stem files" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!wav_files.empty()) {
+            verifyWavFormat(wav_files[0]);
         }
-        std::cout << "  Extracted " << file_count << " stem files" << std::endl;
     } else {
         std::cerr << "✗ Basic extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir);
         return 1;
     }
-    
+
     // Test 2: Extraction with higher sample rate
-    std::cout << "\nTest 2: Extraction with higher sample rate..." << std::endl;
     std::string output_dir2 = output_dir + "_48k";
     std::filesystem::create_directory(output_dir2);
-    
     std::string cmd2 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir2 + "\" --sample-rate 48000";
-    int result2 = std::system(cmd2.c_str());
-    
-    if (result2 == 0) {
+    if (runCommand(cmd2, "Test 2: Extraction with higher sample rate")) {
         std::cout << "✓ High sample rate extraction completed successfully" << std::endl;
-        
-        // Count extracted files
-        int file_count2 = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(output_dir2)) {
-            if (entry.path().extension() == ".wav") {
-                file_count2++;
-            }
+
+        // Count extracted files in subdirectories
+        std::vector<std::string> wav_files2 = findFilesWithExtension(output_dir2, ".wav");
+        std::cout << "  Extracted " << wav_files2.size() << " stem files with high sample rate" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!wav_files2.empty()) {
+            verifyWavFormat(wav_files2[0]);
         }
-        std::cout << "  Extracted " << file_count2 << " stem files with high sample rate" << std::endl;
     } else {
         std::cerr << "✗ High sample rate extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir2);
     }
-    
+
     // Test 3: Extraction with FLAC format
-    std::cout << "\nTest 3: Extraction with FLAC format..." << std::endl;
     std::string output_dir3 = output_dir + "_flac";
     std::filesystem::create_directory(output_dir3);
-    
     std::string cmd3 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir3 + "\" --format flac";
-    int result3 = std::system(cmd3.c_str());
-    
-    if (result3 == 0) {
+    if (runCommand(cmd3, "Test 3: Extraction with FLAC format")) {
         std::cout << "✓ FLAC format extraction completed successfully" << std::endl;
-        
-        // Count extracted files
-        int file_count3 = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(output_dir3)) {
-            if (entry.path().extension() == ".flac") {
-                file_count3++;
-            }
+
+        // Count extracted files in subdirectories
+        std::vector<std::string> flac_files = findFilesWithExtension(output_dir3, ".flac");
+        std::cout << "  Extracted " << flac_files.size() << " stem files in FLAC format" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!flac_files.empty()) {
+            verifyFlacFormat(flac_files[0]);
         }
-        std::cout << "  Extracted " << file_count3 << " stem files in FLAC format" << std::endl;
     } else {
         std::cerr << "✗ FLAC format extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir3);
     }
-    
+
     // Test 4: Extraction with sinc resampling
-    std::cout << "\nTest 4: Extraction with sinc resampling..." << std::endl;
     std::string output_dir4 = output_dir + "_sinc";
     std::filesystem::create_directory(output_dir4);
-
     std::string cmd4 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir4 + "\" --resample sinc";
-    int result4 = std::system(cmd4.c_str());
-
-    if (result4 == 0) {
+    if (runCommand(cmd4, "Test 4: Extraction with sinc resampling")) {
         std::cout << "✓ Sinc resampling extraction completed successfully" << std::endl;
 
-        // Count extracted files
-        int file_count4 = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(output_dir4)) {
-            if (entry.path().extension() == ".wav") {
-                file_count4++;
-            }
+        // Count extracted files in subdirectories
+        std::vector<std::string> wav_files4 = findFilesWithExtension(output_dir4, ".wav");
+        std::cout << "  Extracted " << wav_files4.size() << " stem files with sinc resampling" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!wav_files4.empty()) {
+            verifyWavFormat(wav_files4[0]);
         }
-        std::cout << "  Extracted " << file_count4 << " stem files with sinc resampling" << std::endl;
     } else {
         std::cerr << "✗ Sinc resampling extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir4);
     }
 
     // Test 5: Extraction with Opus format
-    std::cout << "\nTest 5: Extraction with Opus format..." << std::endl;
     std::string output_dir5 = output_dir + "_opus";
     std::filesystem::create_directory(output_dir5);
-
-    std::string cmd5 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir5 + "\" --format opus --opus-bitrate 96";
-    int result5 = std::system(cmd5.c_str());
-
-    if (result5 == 0) {
+    std::string cmd5 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir5 + "\" --format opus --opus-bitrate 96 --sample-rate 48000";
+    if (runCommand(cmd5, "Test 5: Extraction with Opus format")) {
         std::cout << "✓ Opus format extraction completed successfully" << std::endl;
 
-        // Count extracted files
-        int file_count5 = 0;
-        for (const auto& entry : std::filesystem::directory_iterator(output_dir5)) {
-            if (entry.path().extension() == ".opus") {
-                file_count5++;
-            }
+        // Count extracted files in subdirectories
+        std::vector<std::string> opus_files = findFilesWithExtension(output_dir5, ".opus");
+        std::cout << "  Extracted " << opus_files.size() << " stem files in Opus format" << std::endl;
+
+        // Verify file formats using 'file' utility
+        if (!opus_files.empty()) {
+            verifyOpusFormat(opus_files[0]);
         }
-        std::cout << "  Extracted " << file_count5 << " stem files in Opus format" << std::endl;
     } else {
         std::cerr << "✗ Opus format extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir5);
     }
-    
+
     // Cleanup
     std::cout << "\nCleaning up test directories..." << std::endl;
     std::filesystem::remove_all(output_dir);
-    
+
     std::cout << "\n=== All tests completed successfully! ===" << std::endl;
     return 0;
 }

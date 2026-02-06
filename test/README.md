@@ -21,9 +21,9 @@ This directory contains unit and integration tests for the untracker program.
 ./build/test/test_main test_module.xm
 ```
 
-## Test Module
+## Test Modules
 
-For integration tests, you need a module file (XM, MOD, IT, etc.). Place the module file in this directory or provide the path when running the integration test.
+For integration tests, you need module files (XM, MOD, IT, etc.). Module files should be placed in the `modules/` subdirectory of this directory or provide the path when running the integration test.
 
 ## Expected Results
 

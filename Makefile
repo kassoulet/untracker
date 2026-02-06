@@ -16,9 +16,9 @@ install: $(MESON_BUILD_DIR)/build.ninja
 test: $(MESON_BUILD_DIR)/build.ninja
 	ninja -C $(MESON_BUILD_DIR)
 	@echo "Running tests with module files..."
-	./$(MESON_BUILD_DIR)/test/test_main ./test/cndmcrrp.mod
-	./$(MESON_BUILD_DIR)/test/test_main ./test/nova.s3m
-	./$(MESON_BUILD_DIR)/test/test_main ./test/zalza-karate_muffins.xm
+	./$(MESON_BUILD_DIR)/test/test_main ./test/modules/cndmcrrp.mod
+	./$(MESON_BUILD_DIR)/test/test_main ./test/modules/nova.s3m
+	./$(MESON_BUILD_DIR)/test/test_main ./test/modules/zalza-karate_muffins.xm
 	@echo "Tests completed!"
 
 format:

@@ -18,21 +18,24 @@ fi
 # Check if a module file was provided, otherwise use the default
 if [ $# -eq 0 ]; then
     DEFAULT_MODULE="zalza-karate_muffins.xm"
-    if [ -f "$TEST_DIR/$DEFAULT_MODULE" ]; then
-        MODULE_FILE="$TEST_DIR/$DEFAULT_MODULE"
+    if [ -f "$TEST_DIR/modules/$DEFAULT_MODULE" ]; then
+        MODULE_FILE="$TEST_DIR/modules/$DEFAULT_MODULE"
         echo "Using default module file: $DEFAULT_MODULE"
     else
         echo "Usage: $0 <module_file>"
         echo "Example: $0 zalza-karate_muffins.xm"
         echo ""
-        echo "Default module file 'zalza-karate_muffins.xm' not found in test directory."
+        echo "Default module file 'zalza-karate_muffins.xm' not found in test/modules directory."
         exit 1
     fi
 else
-    MODULE_FILE="$1"
-    # Check if the module file exists
-    if [ ! -f "$MODULE_FILE" ]; then
-        echo "Error: Module file '$MODULE_FILE' not found!"
+    # Check if the module file is provided with or without the modules path
+    if [ -f "$1" ]; then
+        MODULE_FILE="$1"
+    elif [ -f "$TEST_DIR/modules/$1" ]; then
+        MODULE_FILE="$TEST_DIR/modules/$1"
+    else
+        echo "Error: Module file '$1' not found in current directory or test/modules directory!"
         exit 1
     fi
     echo "Using module file: $MODULE_FILE"
