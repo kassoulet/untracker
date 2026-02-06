@@ -1,13 +1,6 @@
-# Untracker - Render Stems from Tracker Modules
+![untracker logo](img/untracker.png)
 
-```
-               __                        __
-  __ __  _____/  |_____________    ____ |  | __ ___________
- |  |  \/    \   __\_  __ \__  \ _/ ___\|  |/ // __ \_  __ \
- |  |  /   |  \  |  |  | \// __ \\  \___|    <\  ___/|  | \/
- |____/|___|  /__|  |__|  (____  /\___  >__|_ \\___  >__|
-            \/                 \/     \/     \/    \/
-```
+# Untracker - Render Stems from Tracker Modules
 
 
 This program renders individual stems from tracker module files (MOD, XM, IT, S3M, etc.) using libopenmpt.
