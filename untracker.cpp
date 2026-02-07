@@ -130,6 +130,44 @@ public:
       names = mod->get_instrument_names();
     }
 
+    openmpt::ext::interactive *interactive =
+        static_cast<openmpt::ext::interactive *>(
+            mod->get_interface(openmpt::ext::interactive_id));
+
+    if (!interactive) {
+      std::cerr << "Interactive interface not available, cannot extract stems."
+                << std::endl;
+      return;
+    }
+
+    // Mute all instruments/samples initially (once)
+    for (int i = 0; i < num_instruments; ++i) {
+      try {
+        interactive->set_instrument_mute_status(i, true);
+      } catch (const std::exception &e) {
+        std::cout << "Warning: Could not mute instrument/sample " << i << ": "
+                  << e.what() << std::endl;
+      }
+    }
+
+    // Extract module name without extension (once)
+    std::string module_name =
+        input_path.substr(input_path.find_last_of("/\\") + 1);
+    size_t dot_pos = module_name.find_last_of(".");
+    if (dot_pos != std::string::npos) {
+      module_name.resize(dot_pos);
+    }
+
+    // Create module-specific output directory (once)
+    std::string module_output_dir =
+        output_dir + "/" + sanitize_filename(module_name);
+    std::filesystem::create_directories(module_output_dir);
+
+    // Reuse audio buffer to avoid repeated allocations
+    // Buffer size increased for better rendering throughput
+    const int BUFFER_SIZE = 65536;
+    std::vector<float> buffer(BUFFER_SIZE * options.channels);
+
     for (int idx = 0; idx < num_instruments; ++idx) {
       // Determine the name for this instrument/sample/channel
       std::string name;
@@ -146,27 +184,6 @@ public:
       std::cout << "Processing " << (using_samples ? "sample" : "instrument")
                 << " " << idx << ": " << name << std::endl;
 
-      openmpt::ext::interactive *interactive =
-          static_cast<openmpt::ext::interactive *>(
-              mod->get_interface(openmpt::ext::interactive_id));
-
-      if (!interactive) {
-        std::cerr
-            << "Interactive interface not available, cannot extract stems."
-            << std::endl;
-        return;
-      }
-
-      // Mute all instruments/samples initially
-      for (int i = 0; i < num_instruments; ++i) {
-        try {
-          interactive->set_instrument_mute_status(i, true);
-        } catch (const std::exception &e) {
-          std::cout << "Warning: Could not mute instrument/sample " << i << ": "
-                    << e.what() << std::endl;
-        }
-      }
-
       // Unmute only the current instrument/sample
       try {
         interactive->set_instrument_mute_status(idx, false);
@@ -177,19 +194,6 @@ public:
 
       // Reset playback position
       mod->set_position_seconds(0.0);
-
-      // Extract module name without extension
-      std::string module_name =
-          input_path.substr(input_path.find_last_of("/\\") + 1);
-      size_t dot_pos = module_name.find_last_of(".");
-      if (dot_pos != std::string::npos) {
-        module_name.resize(dot_pos);
-      }
-
-      // Create module-specific output directory
-      std::string module_output_dir =
-          output_dir + "/" + sanitize_filename(module_name);
-      std::filesystem::create_directories(module_output_dir);
 
       // Create output filename in format:
       // {module_output_dir}/{instrument_number}-{instrument_name}.{format}
@@ -237,7 +241,6 @@ public:
       }
 
       bool has_any_audio = false;
-      const int BUFFER_SIZE = 4096;
 
       // First pass: check for audio with interpolation disabled (faster)
       mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH,
@@ -245,7 +248,6 @@ public:
       mod->set_position_seconds(0.0);
 
       while (true) {
-        std::vector<float> buffer(BUFFER_SIZE * options.channels);
         int samples_read = mod->read_interleaved_stereo(
             options.sample_rate, BUFFER_SIZE, buffer.data());
 
@@ -278,6 +280,11 @@ public:
 
       if (!has_any_audio) {
         std::cout << "Skipping silent stem: " << output_filename << std::endl;
+        // Mute back the current instrument/sample before continuing
+        try {
+          interactive->set_instrument_mute_status(idx, true);
+        } catch (...) {
+        }
         continue; // Skip this instrument/sample if it produces no audio
       }
 
@@ -290,11 +297,15 @@ public:
       if (!outfile) {
         std::cerr << "Could not create output file: " << output_filename
                   << " - " << sf_strerror(nullptr) << std::endl;
+        // Mute back the current instrument/sample before continuing
+        try {
+          interactive->set_instrument_mute_status(idx, true);
+        } catch (...) {
+        }
         continue;
       }
 
       while (true) {
-        std::vector<float> buffer(BUFFER_SIZE * options.channels);
         int samples_read = mod->read_interleaved_stereo(
             options.sample_rate, BUFFER_SIZE, buffer.data());
 
@@ -316,6 +327,12 @@ public:
 
       sf_close(outfile);
       std::cout << "Extracted stem: " << output_filename << std::endl;
+
+      // Mute back the current instrument/sample for the next iteration
+      try {
+        interactive->set_instrument_mute_status(idx, true);
+      } catch (...) {
+      }
     }
   }
 
