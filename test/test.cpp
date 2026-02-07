@@ -38,11 +38,18 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <vector>
 #include <random>
+#include <map>
+#include <cmath>
+
+// Additional includes for audio file analysis
+extern "C" {
+#include <sndfile.h>
+}
 
 // Constants
 const std::string UNTRACKER_EXECUTABLE = "untracker";
 const std::string DEFAULT_TEST_MODULES_DIR = "./modules/";
-const std::string OUTPUT_DIR_PREFIX = "./test_output_";
+const std::string OUTPUT_DIR_PREFIX = "./test/output/test_output_";
 
 // Helper function to get file type using the 'file' command
 std::string getFileType(const std::string& filepath) {
@@ -234,6 +241,150 @@ void verifyOpusFormat(const std::string& filepath, int expected_bit_depth = 16) 
     }
 }
 
+// Helper function to get audio file duration using libsndfile
+double getAudioFileDuration(const std::string& filepath) {
+    SF_INFO sf_info;
+    SNDFILE* file = sf_open(filepath.c_str(), SFM_READ, &sf_info);
+    if (!file) {
+        std::cerr << "Error opening audio file: " << sf_strerror(nullptr) << std::endl;
+        return -1.0;
+    }
+    
+    double duration = static_cast<double>(sf_info.frames) / static_cast<double>(sf_info.samplerate);
+    sf_close(file);
+    return duration;
+}
+
+// Helper function to get audio file frame count using libsndfile
+sf_count_t getAudioFileFrameCount(const std::string& filepath) {
+    SF_INFO sf_info;
+    SNDFILE* file = sf_open(filepath.c_str(), SFM_READ, &sf_info);
+    if (!file) {
+        std::cerr << "Error opening audio file: " << sf_strerror(nullptr) << std::endl;
+        return -1;
+    }
+    
+    sf_count_t frame_count = sf_info.frames;
+    sf_close(file);
+    return frame_count;
+}
+
+// NEW: Test function to check that all stems have the same length
+bool testStemLengthConsistency(const std::string& module_file, const std::string& output_dir_base) {
+    std::cout << "\n=== Test: Stem Length Consistency ===" << std::endl;
+    
+    // Find the executable
+    std::string exe_path = findExecutable();
+    if (exe_path.empty()) {
+        return false;
+    }
+    
+    // Create a specific output directory for this test
+    std::string output_dir = output_dir_base + "_stem_length_test";
+    std::filesystem::create_directories(output_dir);
+    
+    // Extract stems using untracker
+    std::string cmd = exe_path + " -i \"" + module_file + "\" -o \"" + output_dir + "\"";
+    if (!runCommand(cmd, "Extracting stems for length consistency test")) {
+        std::cerr << "✗ Stem extraction failed for length consistency test" << std::endl;
+        return false;
+    }
+    
+    // Find all audio files in the output directory
+    std::vector<std::string> audio_extensions = {".wav", ".flac"};
+    std::vector<std::string> audio_files;
+    
+    for (const auto& ext : audio_extensions) {
+        auto files = findFilesWithExtension(output_dir, ext);
+        audio_files.insert(audio_files.end(), files.begin(), files.end());
+    }
+    
+    std::cout << "  Found " << audio_files.size() << " audio files" << std::endl;
+    
+    if (audio_files.empty()) {
+        std::cout << "  No audio files found, skipping length consistency check" << std::endl;
+        return true; // Not a failure, just nothing to test
+    }
+    
+    // Get duration and frame count for each file
+    std::vector<double> durations;
+    std::vector<sf_count_t> frame_counts;
+    
+    for (const auto& file : audio_files) {
+        double duration = getAudioFileDuration(file);
+        sf_count_t frames = getAudioFileFrameCount(file);
+        
+        if (duration < 0 || frames < 0) {
+            std::cerr << "  Error reading file: " << file << std::endl;
+            return false;
+        }
+        
+        durations.push_back(duration);
+        frame_counts.push_back(frames);
+        std::cout << "    " << std::filesystem::path(file).filename().string() 
+                  << ": " << duration << "s, " << frames << " frames" << std::endl;
+    }
+    
+    // Check if all durations are the same (within a small tolerance)
+    double first_duration = durations[0];
+    sf_count_t first_frame_count = frame_counts[0];
+    bool all_same_duration = true;
+    bool all_same_frames = true;
+    
+    for (size_t i = 1; i < durations.size(); ++i) {
+        if (std::abs(durations[i] - first_duration) > 0.001) { // 1ms tolerance
+            all_same_duration = false;
+        }
+        if (frame_counts[i] != first_frame_count) {
+            all_same_frames = false;
+        }
+    }
+    
+    std::cout << "  Duration consistency: " << (all_same_duration ? "PASS" : "FAIL") << std::endl;
+    std::cout << "  Frame count consistency: " << (all_same_frames ? "PASS" : "FAIL") << std::endl;
+    
+    if (all_same_duration && all_same_frames) {
+        std::cout << "✓ All stems have the same length!" << std::endl;
+        return true;
+    } else {
+        std::cout << "✗ Stems have different lengths:" << std::endl;
+        
+        // Group files by duration/frame count for clearer reporting
+        std::map<double, std::vector<std::string>> duration_groups;
+        std::map<sf_count_t, std::vector<std::string>> frame_groups;
+        
+        for (size_t i = 0; i < audio_files.size(); ++i) {
+            std::string filename = std::filesystem::path(audio_files[i]).filename().string();
+            duration_groups[durations[i]].push_back(filename);
+            frame_groups[frame_counts[i]].push_back(filename);
+        }
+        
+        if (!all_same_duration) {
+            std::cout << "  Different durations:" << std::endl;
+            for (const auto& group : duration_groups) {
+                std::cout << "    " << group.first << "s: ";
+                for (const auto& file : group.second) {
+                    std::cout << file << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+        
+        if (!all_same_frames) {
+            std::cout << "  Different frame counts:" << std::endl;
+            for (const auto& group : frame_groups) {
+                std::cout << "    " << group.first << " frames: ";
+                for (const auto& file : group.second) {
+                    std::cout << file << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+        
+        return false;
+    }
+}
+
 int main(int argc, char* argv[]) {
     std::cout << "=== Untracker Integration Test ===" << std::endl;
 
@@ -266,7 +417,7 @@ int main(int argc, char* argv[]) {
     std::filesystem::create_directory(output_dir);
 
     std::cout << "✓ Created temporary output directory: " << output_dir << std::endl;
-    
+
     // Test 1: Basic extraction
     std::string cmd1 = exe_path + " -i \"" + test_module + "\" -o \"" + output_dir + "\"";
     if (runCommand(cmd1, "Test 1: Basic stem extraction")) {
@@ -384,6 +535,15 @@ int main(int argc, char* argv[]) {
     } else {
         std::cerr << "✗ 24-bit depth extraction failed" << std::endl;
         std::filesystem::remove_all(output_dir6);
+    }
+
+    // NEW: Test 7: Stem length consistency
+    if (testStemLengthConsistency(test_module, output_dir)) {
+        std::cout << "✓ Stem length consistency test passed!" << std::endl;
+    } else {
+        std::cerr << "✗ Stem length consistency test failed!" << std::endl;
+        std::filesystem::remove_all(output_dir);
+        return 1;
     }
 
     // Cleanup
