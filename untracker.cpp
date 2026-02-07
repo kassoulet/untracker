@@ -246,8 +246,14 @@ public:
 
       while (true) {
         std::vector<float> buffer(BUFFER_SIZE * options.channels);
-        int samples_read = mod->read_interleaved(
-            options.sample_rate, options.channels, BUFFER_SIZE, buffer.data());
+        int samples_read =
+            (options.channels == 1)
+                ? mod->read(options.sample_rate, BUFFER_SIZE, buffer.data())
+                : (options.channels == 2)
+                      ? mod->read_interleaved_stereo(options.sample_rate,
+                                                     BUFFER_SIZE, buffer.data())
+                      : mod->read_interleaved_quad(options.sample_rate,
+                                                   BUFFER_SIZE, buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -295,8 +301,14 @@ public:
 
       while (true) {
         std::vector<float> buffer(BUFFER_SIZE * options.channels);
-        int samples_read = mod->read_interleaved(
-            options.sample_rate, options.channels, BUFFER_SIZE, buffer.data());
+        int samples_read =
+            (options.channels == 1)
+                ? mod->read(options.sample_rate, BUFFER_SIZE, buffer.data())
+                : (options.channels == 2)
+                      ? mod->read_interleaved_stereo(options.sample_rate,
+                                                     BUFFER_SIZE, buffer.data())
+                      : mod->read_interleaved_quad(options.sample_rate,
+                                                   BUFFER_SIZE, buffer.data());
 
         if (samples_read == 0) {
           break;
