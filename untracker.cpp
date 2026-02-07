@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct AudioOptions {
   int sample_rate = 44100;
-  int channels = 2; // Stereo
+  int channels = 2;                  // Stereo
   int interpolation_filter = 4;      // cubic interpolation (sinc-like)
   std::string output_format = "wav"; // wav, flac, opus, vorbis
   int bit_depth = 16;                // for lossless formats
@@ -236,60 +236,15 @@ public:
                   << "', defaulting to WAV." << std::endl;
       }
 
-      // First, check if this instrument/sample produces any audio
-      // by rendering the entire module to see if there's any non-zero data
+      // First, render the entire stem to memory to check for audio
       const int BUFFER_SIZE = 4096;
-      std::vector<float> preview_buffer(BUFFER_SIZE * options.channels);
+      std::vector<float> full_audio_data;
       bool has_any_audio = false;
 
       mod->set_position_seconds(0.0);
 
       while (true) {
-        int samples_read = mod->read_interleaved_stereo(
-            options.sample_rate, BUFFER_SIZE, preview_buffer.data());
-
-        if (samples_read == 0) {
-          break;
-        }
-
-        for (int i = 0; i < samples_read * options.channels; ++i) {
-          if (std::abs(preview_buffer[i]) >
-              1e-9f) { // Using small epsilon instead of exact zero
-            has_any_audio = true;
-            break;
-          }
-        }
-
-        if (has_any_audio) {
-          break;
-        }
-
-        double current_pos = mod->get_position_seconds();
-        double duration = mod->get_duration_seconds();
-        if (current_pos >= duration * 0.99) { // Allow slight tolerance
-          break;
-        }
-      }
-
-      // Reset position back to beginning for actual rendering
-      mod->set_position_seconds(0.0);
-
-      if (!has_any_audio) {
-        std::cout << "Skipping silent stem: " << output_filename << std::endl;
-        continue;
-      }
-
-      // Only create the output file if we know there's audio to write
-      SNDFILE *outfile = sf_open(output_filename.c_str(), SFM_WRITE, &sf_info);
-      if (!outfile) {
-        std::cerr << "Could not create output file: " << output_filename
-                  << " - " << sf_strerror(nullptr) << std::endl;
-        continue;
-      }
-
-      std::vector<float> buffer(BUFFER_SIZE * options.channels);
-
-      while (true) {
+        std::vector<float> buffer(BUFFER_SIZE * options.channels);
         int samples_read = mod->read_interleaved_stereo(
             options.sample_rate, BUFFER_SIZE, buffer.data());
 
@@ -297,14 +252,17 @@ public:
           break;
         }
 
-        // Write to output file
-        sf_count_t frames_written =
-            sf_writef_float(outfile, buffer.data(), samples_read);
-        if (frames_written != samples_read) {
-          std::cerr << "Error writing to output file: " << sf_strerror(outfile)
-                    << std::endl;
-          break;
+        // Check if this buffer contains any non-silent samples
+        for (int i = 0; i < samples_read * options.channels; ++i) {
+          if (buffer[i] != 0.0f) { // Check for exact zero
+            has_any_audio = true;
+          }
         }
+
+        // Add the samples to our full audio data
+        full_audio_data.insert(full_audio_data.end(), buffer.begin(),
+                               buffer.begin() +
+                                   samples_read * options.channels);
 
         double current_pos = mod->get_position_seconds();
         double duration = mod->get_duration_seconds();
@@ -313,8 +271,35 @@ public:
         }
       }
 
-      sf_close(outfile);
-      std::cout << "Extracted stem: " << output_filename << std::endl;
+      // Only create the output file and write if we know there's audio
+      if (has_any_audio) {
+        SNDFILE *outfile =
+            sf_open(output_filename.c_str(), SFM_WRITE, &sf_info);
+        if (!outfile) {
+          std::cerr << "Could not create output file: " << output_filename
+                    << " - " << sf_strerror(nullptr) << std::endl;
+          continue;
+        }
+
+        // Write all the audio data at once
+        sf_count_t total_frames = full_audio_data.size() / options.channels;
+        sf_count_t frames_written =
+            sf_writef_float(outfile, full_audio_data.data(), total_frames);
+
+        if (frames_written != total_frames) {
+          std::cerr << "Error writing to output file: " << sf_strerror(outfile)
+                    << std::endl;
+          sf_close(outfile);
+          std::filesystem::remove(output_filename);
+          continue;
+        }
+
+        sf_close(outfile);
+        std::cout << "Extracted stem: " << output_filename << std::endl;
+      } else {
+        std::cout << "Skipping silent stem: " << output_filename << std::endl;
+        continue;
+      }
     }
   }
 
@@ -336,8 +321,8 @@ private:
 };
 
 // Helper function to parse command line arguments
-AudioOptions parseArguments(int argc, char * const argv[], std::string &input_file,
-                            std::string &output_dir) {
+AudioOptions parseArguments(int argc, const char *const argv[],
+                            std::string &input_file, std::string &output_dir) {
   AudioOptions opts;
 
   // Parse arguments
