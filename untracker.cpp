@@ -1,3 +1,34 @@
+/*
+BSD 3-Clause License
+
+Copyright (c) 2026, Gautier Portet
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -87,7 +118,6 @@ public:
 
     // Get instrument names or sample names depending on the file type
     if (using_samples) {
-      // For MOD files and other formats that use samples, get sample names
       try {
         // Use the proper libopenmpt API to get all sample names at once
         names = mod->get_sample_names();
@@ -116,7 +146,6 @@ public:
       std::cout << "Processing " << (using_samples ? "sample" : "instrument")
                 << " " << idx << ": " << name << std::endl;
 
-      // Cast to interactive interface to access muting functions
       openmpt::ext::interactive *interactive =
           static_cast<openmpt::ext::interactive *>(
               mod->get_interface(openmpt::ext::interactive_id));
@@ -129,19 +158,12 @@ public:
       }
 
       // Mute all instruments/samples initially
-      // For MOD files and other formats that use samples, we'll try to mute
-      // each instrument/sample Note: Some formats like classic MOD may not
-      // support individual sample muting
       for (int i = 0; i < num_instruments; ++i) {
         try {
           interactive->set_instrument_mute_status(i, true);
         } catch (const std::exception &e) {
-          // If muting fails for this index, it might be that the format doesn't
-          // support individual instrument muting. For MOD files, we might need
-          // to handle this differently.
           std::cout << "Warning: Could not mute instrument/sample " << i << ": "
                     << e.what() << std::endl;
-          // Continue anyway - we'll try to extract what we can
         }
       }
 
@@ -151,7 +173,6 @@ public:
       } catch (const std::exception &e) {
         std::cout << "Warning: Could not unmute instrument/sample " << idx
                   << ": " << e.what() << std::endl;
-        // Continue anyway - we'll try to extract what we can
       }
 
       // Reset playback position
@@ -176,17 +197,14 @@ public:
       std::string instrument_number =
           "000" +
           std::to_string(idx + 1); // +1 to start from 001 instead of 000
-      // Take only the last 3 digits to ensure format like 001, 002, ..., 999
       instrument_number =
           instrument_number.substr(instrument_number.length() - 3);
 
-      // Only include the instrument name if it's not empty
       std::string output_filename;
       if (!name.empty()) {
         output_filename = module_output_dir + "/" + instrument_number + "-" +
                           sanitize_filename(name) + "." + options.output_format;
       } else {
-        // If no name, just use the number
         output_filename = module_output_dir + "/" + instrument_number + "." +
                           options.output_format;
       }
@@ -225,7 +243,6 @@ public:
       std::vector<float> preview_buffer(BUFFER_SIZE * options.channels);
       bool has_any_audio = false;
 
-      // Temporarily reset position to check for audio
       mod->set_position_seconds(0.0);
 
       while (true) {
@@ -236,20 +253,18 @@ public:
           break;
         }
 
-        // Check if this buffer contains any non-silent samples
         for (int i = 0; i < samples_read * options.channels; ++i) {
           if (std::abs(preview_buffer[i]) >
               1e-9f) { // Using small epsilon instead of exact zero
             has_any_audio = true;
-            break; // Found audio, no need to continue checking this buffer
+            break;
           }
         }
 
         if (has_any_audio) {
-          break; // Found audio, no need to continue checking the entire module
+          break;
         }
 
-        // Check if we've reached the end of the song
         double current_pos = mod->get_position_seconds();
         double duration = mod->get_duration_seconds();
         if (current_pos >= duration * 0.99) { // Allow slight tolerance
@@ -262,7 +277,7 @@ public:
 
       if (!has_any_audio) {
         std::cout << "Skipping silent stem: " << output_filename << std::endl;
-        continue; // Skip this instrument/sample if it produces no audio
+        continue;
       }
 
       // Only create the output file if we know there's audio to write
@@ -273,8 +288,6 @@ public:
         continue;
       }
 
-      // Only create the output file if we know there's audio to write
-      // Render the module with only this instrument active
       std::vector<float> buffer(BUFFER_SIZE * options.channels);
 
       while (true) {
@@ -294,7 +307,6 @@ public:
           break;
         }
 
-        // Check if we've reached the end of the song
         double current_pos = mod->get_position_seconds();
         double duration = mod->get_duration_seconds();
         if (current_pos >= duration * 0.99) { // Allow slight tolerance
@@ -306,7 +318,6 @@ public:
       std::cout << "Extracted stem: " << output_filename << std::endl;
     }
 
-    // Restore all instruments to unmuted state
     openmpt::ext::interactive *interactive =
         static_cast<openmpt::ext::interactive *>(
             mod->get_interface(openmpt::ext::interactive_id));
