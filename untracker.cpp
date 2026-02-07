@@ -246,8 +246,8 @@ public:
 
       while (true) {
         std::vector<float> buffer(BUFFER_SIZE * options.channels);
-        int samples_read = mod->read_interleaved_stereo(
-            options.sample_rate, BUFFER_SIZE, buffer.data());
+        int samples_read = mod->read_interleaved(
+            options.sample_rate, options.channels, BUFFER_SIZE, buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -295,8 +295,8 @@ public:
 
       while (true) {
         std::vector<float> buffer(BUFFER_SIZE * options.channels);
-        int samples_read = mod->read_interleaved_stereo(
-            options.sample_rate, BUFFER_SIZE, buffer.data());
+        int samples_read = mod->read_interleaved(
+            options.sample_rate, options.channels, BUFFER_SIZE, buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -321,6 +321,9 @@ public:
 
 private:
   std::string sanitize_filename(const std::string &name) {
+    if (name.empty()) {
+      return "unknown";
+    }
     std::string sanitized = name;
     for (char &c : sanitized) {
       if (c == '<' || c == '>' || c == ':' || c == '"' || c == '/' ||
@@ -331,6 +334,10 @@ private:
       if (c == ' ') {
         c = '_';
       }
+    }
+    // Prevent path traversal
+    if (sanitized == "." || sanitized == "..") {
+      return "_";
     }
     return sanitized;
   }
@@ -351,8 +358,17 @@ AudioOptions parseArguments(int argc, const char *const argv[],
       output_dir = argv[++i];
     } else if (arg == "--sample-rate" && i + 1 < argc) {
       opts.sample_rate = std::stoi(argv[++i]);
+      if (opts.sample_rate < 8000 || opts.sample_rate > 192000) {
+        throw std::runtime_error("Invalid sample rate: " +
+                                 std::to_string(opts.sample_rate));
+      }
     } else if (arg == "--channels" && i + 1 < argc) {
       opts.channels = std::stoi(argv[++i]);
+      if (opts.channels != 1 && opts.channels != 2 && opts.channels != 4) {
+        throw std::runtime_error("Invalid channels: " +
+                                 std::to_string(opts.channels) +
+                                 " (only 1, 2, 4 supported)");
+      }
     } else if (arg == "--resample" && i + 1 < argc) {
       std::string resample_method = argv[++i];
       if (resample_method == "linear")
@@ -372,10 +388,25 @@ AudioOptions parseArguments(int argc, const char *const argv[],
       opts.output_format = argv[++i];
     } else if (arg == "--bit-depth" && i + 1 < argc) {
       opts.bit_depth = std::stoi(argv[++i]);
+      if (opts.bit_depth != 16 && opts.bit_depth != 24) {
+        throw std::runtime_error("Invalid bit depth: " +
+                                 std::to_string(opts.bit_depth) +
+                                 " (only 16, 24 supported)");
+      }
     } else if (arg == "--opus-bitrate" && i + 1 < argc) {
       opts.opus_bitrate = std::stoi(argv[++i]);
+      if (opts.opus_bitrate < 16 || opts.opus_bitrate > 512) {
+        throw std::runtime_error("Invalid opus bitrate: " +
+                                 std::to_string(opts.opus_bitrate) +
+                                 " (16-512 supported)");
+      }
     } else if (arg == "--vorbis-quality" && i + 1 < argc) {
       opts.vorbis_quality = std::stoi(argv[++i]);
+      if (opts.vorbis_quality < 0 || opts.vorbis_quality > 10) {
+        throw std::runtime_error("Invalid vorbis quality: " +
+                                 std::to_string(opts.vorbis_quality) +
+                                 " (0-10 supported)");
+      }
     } else if (arg == "--help") {
       std::cout << "Usage: " << argv[0] << " [OPTIONS]\n";
       std::cout << "Options:\n";
