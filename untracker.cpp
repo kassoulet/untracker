@@ -248,15 +248,16 @@ public:
       mod->set_position_seconds(0.0);
 
       while (true) {
-        std::vector<float> buffer(BUFFER_SIZE * options.channels);
+        std::vector<float> check_buffer(BUFFER_SIZE * options.channels);
         int samples_read =
             (options.channels == 1)
-                ? mod->read(options.sample_rate, BUFFER_SIZE, buffer.data())
-                : (options.channels == 2)
-                      ? mod->read_interleaved_stereo(options.sample_rate,
-                                                     BUFFER_SIZE, buffer.data())
-                      : mod->read_interleaved_quad(options.sample_rate,
-                                                   BUFFER_SIZE, buffer.data());
+                ? mod->read(options.sample_rate, BUFFER_SIZE,
+                            check_buffer.data())
+            : (options.channels == 2)
+                ? mod->read_interleaved_stereo(options.sample_rate, BUFFER_SIZE,
+                                               check_buffer.data())
+                : mod->read_interleaved_quad(options.sample_rate, BUFFER_SIZE,
+                                             check_buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -264,7 +265,7 @@ public:
 
         // Check if this buffer contains any non-silent samples
         for (int i = 0; i < samples_read * options.channels; ++i) {
-          if (buffer[i] != 0.0f) { // Check for exact zero
+          if (check_buffer[i] != 0.0f) { // Check for exact zero
             has_any_audio = true;
             break; // Exit early once we find audio
           }
@@ -313,15 +314,16 @@ public:
       }
 
       while (true) {
-        std::vector<float> buffer(BUFFER_SIZE * options.channels);
+        std::vector<float> write_buffer(BUFFER_SIZE * options.channels);
         int samples_read =
             (options.channels == 1)
-                ? mod->read(options.sample_rate, BUFFER_SIZE, buffer.data())
-                : (options.channels == 2)
-                      ? mod->read_interleaved_stereo(options.sample_rate,
-                                                     BUFFER_SIZE, buffer.data())
-                      : mod->read_interleaved_quad(options.sample_rate,
-                                                   BUFFER_SIZE, buffer.data());
+                ? mod->read(options.sample_rate, BUFFER_SIZE,
+                            write_buffer.data())
+            : (options.channels == 2)
+                ? mod->read_interleaved_stereo(options.sample_rate, BUFFER_SIZE,
+                                               write_buffer.data())
+                : mod->read_interleaved_quad(options.sample_rate, BUFFER_SIZE,
+                                             write_buffer.data());
 
         if (samples_read == 0) {
           break;
@@ -329,7 +331,7 @@ public:
 
         // Write to output file
         sf_count_t frames_written =
-            sf_writef_float(outfile, buffer.data(), samples_read);
+            sf_writef_float(outfile, write_buffer.data(), samples_read);
         if (frames_written != samples_read) {
           std::cerr << "Error writing to output file: " << sf_strerror(outfile)
                     << std::endl;
@@ -396,9 +398,9 @@ AudioOptions parseArguments(int argc, const char *const argv[],
     } else if (arg == "--channels" && i + 1 < argc) {
       opts.channels = std::stoi(argv[++i]);
       if (opts.channels != 1 && opts.channels != 2 && opts.channels != 4) {
-        throw std::runtime_error("Invalid channels: " +
-                                 std::to_string(opts.channels) +
-                                 " (only 1, 2, 4 supported)");
+        throw std::runtime_error(
+            "Invalid channels: " + std::to_string(opts.channels) +
+            " (only 1, 2, 4 supported)");
       }
     } else if (arg == "--resample" && i + 1 < argc) {
       std::string resample_method = argv[++i];
@@ -420,23 +422,23 @@ AudioOptions parseArguments(int argc, const char *const argv[],
     } else if (arg == "--bit-depth" && i + 1 < argc) {
       opts.bit_depth = std::stoi(argv[++i]);
       if (opts.bit_depth != 16 && opts.bit_depth != 24) {
-        throw std::runtime_error("Invalid bit depth: " +
-                                 std::to_string(opts.bit_depth) +
-                                 " (only 16, 24 supported)");
+        throw std::runtime_error(
+            "Invalid bit depth: " + std::to_string(opts.bit_depth) +
+            " (only 16, 24 supported)");
       }
     } else if (arg == "--opus-bitrate" && i + 1 < argc) {
       opts.opus_bitrate = std::stoi(argv[++i]);
       if (opts.opus_bitrate < 16 || opts.opus_bitrate > 512) {
-        throw std::runtime_error("Invalid opus bitrate: " +
-                                 std::to_string(opts.opus_bitrate) +
-                                 " (16-512 supported)");
+        throw std::runtime_error(
+            "Invalid opus bitrate: " + std::to_string(opts.opus_bitrate) +
+            " (16-512 supported)");
       }
     } else if (arg == "--vorbis-quality" && i + 1 < argc) {
       opts.vorbis_quality = std::stoi(argv[++i]);
       if (opts.vorbis_quality < 0 || opts.vorbis_quality > 10) {
-        throw std::runtime_error("Invalid vorbis quality: " +
-                                 std::to_string(opts.vorbis_quality) +
-                                 " (0-10 supported)");
+        throw std::runtime_error(
+            "Invalid vorbis quality: " + std::to_string(opts.vorbis_quality) +
+            " (0-10 supported)");
       }
     } else if (arg == "--help") {
       std::cout << "Usage: " << argv[0] << " [OPTIONS]\n";

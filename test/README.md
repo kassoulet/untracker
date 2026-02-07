@@ -29,5 +29,5 @@ For integration tests, you need module files (XM, MOD, IT, etc.). Module files s
 
 After running the integration tests, you should see:
 - Multiple stem files extracted in the output directory
-- Different formats tested (WAV, FLAC)
+- Different formats tested (WAV, FLAC, Opus, etc.)
 - Audio processing options verified
