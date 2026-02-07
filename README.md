@@ -94,6 +94,10 @@ The program supports all formats supported by libopenmpt, including:
 - Vorbis - Lossy compression with variable quality settings
 - Opus - Lossy compression with variable bitrate settings
 
+## Notes
+
+- libopenmpt mixes .MOD files like PC trackers, with 50% of the channel to the other side, so the output will differ from Amiga ProTracker renders. You can fix the panning in your DAW afterwards if needed.
+
 ## Next Steps
 - Add options for start and stop positions for rendering specific sections of the module
 - Add channel mode
