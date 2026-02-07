@@ -316,16 +316,6 @@ public:
       sf_close(outfile);
       std::cout << "Extracted stem: " << output_filename << std::endl;
     }
-
-    openmpt::ext::interactive *interactive =
-        static_cast<openmpt::ext::interactive *>(
-            mod->get_interface(openmpt::ext::interactive_id));
-
-    if (interactive) {
-      for (int i = 0; i < num_instruments; ++i) {
-        interactive->set_instrument_mute_status(i, false);
-      }
-    }
   }
 
 private:
