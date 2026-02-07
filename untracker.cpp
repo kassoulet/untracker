@@ -236,11 +236,12 @@ public:
                   << "', defaulting to WAV." << std::endl;
       }
 
-      // First, render the entire stem to memory to check for audio
-      const int BUFFER_SIZE = 4096;
-      std::vector<float> full_audio_data;
       bool has_any_audio = false;
+      const int BUFFER_SIZE = 4096;
 
+      // First pass: check for audio with interpolation disabled (faster)
+      mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH,
+                            1); // Nearest neighbor (no interpolation)
       mod->set_position_seconds(0.0);
 
       while (true) {
@@ -256,13 +257,13 @@ public:
         for (int i = 0; i < samples_read * options.channels; ++i) {
           if (buffer[i] != 0.0f) { // Check for exact zero
             has_any_audio = true;
+            break; // Exit early once we find audio
           }
         }
 
-        // Add the samples to our full audio data
-        full_audio_data.insert(full_audio_data.end(), buffer.begin(),
-                               buffer.begin() +
-                                   samples_read * options.channels);
+        if (has_any_audio) {
+          break; // Stop checking once we know there's audio
+        }
 
         double current_pos = mod->get_position_seconds();
         double duration = mod->get_duration_seconds();
@@ -271,35 +272,50 @@ public:
         }
       }
 
-      // Only create the output file and write if we know there's audio
-      if (has_any_audio) {
-        SNDFILE *outfile =
-            sf_open(output_filename.c_str(), SFM_WRITE, &sf_info);
-        if (!outfile) {
-          std::cerr << "Could not create output file: " << output_filename
-                    << " - " << sf_strerror(nullptr) << std::endl;
-          continue;
+      // Restore the original interpolation setting
+      mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH,
+                            options.interpolation_filter);
+
+      if (!has_any_audio) {
+        std::cout << "Skipping silent stem: " << output_filename << std::endl;
+        continue; // Skip this instrument/sample if it produces no audio
+      }
+
+      // Second pass: render with proper interpolation since we know there's
+      // audio
+      mod->set_position_seconds(0.0);
+
+      // Only create the output file if we know there's audio to write
+      SNDFILE *outfile = sf_open(output_filename.c_str(), SFM_WRITE, &sf_info);
+      if (!outfile) {
+        std::cerr << "Could not create output file: " << output_filename
+                  << " - " << sf_strerror(nullptr) << std::endl;
+        continue;
+      }
+
+      while (true) {
+        std::vector<float> buffer(BUFFER_SIZE * options.channels);
+        int samples_read = mod->read_interleaved_stereo(
+            options.sample_rate, BUFFER_SIZE, buffer.data());
+
+        if (samples_read == 0) {
+          break;
         }
 
-        // Write all the audio data at once
-        sf_count_t total_frames = full_audio_data.size() / options.channels;
+        // Write to output file
         sf_count_t frames_written =
-            sf_writef_float(outfile, full_audio_data.data(), total_frames);
-
-        if (frames_written != total_frames) {
+            sf_writef_float(outfile, buffer.data(), samples_read);
+        if (frames_written != samples_read) {
           std::cerr << "Error writing to output file: " << sf_strerror(outfile)
                     << std::endl;
           sf_close(outfile);
           std::filesystem::remove(output_filename);
-          continue;
+          break;
         }
-
-        sf_close(outfile);
-        std::cout << "Extracted stem: " << output_filename << std::endl;
-      } else {
-        std::cout << "Skipping silent stem: " << output_filename << std::endl;
-        continue;
       }
+
+      sf_close(outfile);
+      std::cout << "Extracted stem: " << output_filename << std::endl;
     }
   }
 
