@@ -43,7 +43,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct AudioOptions {
   int sample_rate = 44100;
-  int channels = 2;             // Stereo
+  int channels = 2;             // Stereo (will be adjusted to 1 if stereo separation is 0)
   int interpolation_filter = 4; // cubic interpolation (sinc-like)
   int stereo_separation =
       100; // stereo separation in percent [0,200], default 100
@@ -70,11 +70,20 @@ public:
     // Load the module using module_ext for advanced features
     mod = std::make_unique<openmpt::module_ext>(file);
 
+    // Adjust channels based on stereo separation: if 0, use mono
+    AudioOptions adjusted_opts = options;
+    if (adjusted_opts.stereo_separation == 0) {
+      adjusted_opts.channels = 1;  // Mono when stereo separation is 0
+    }
+
     // Set up audio parameters
     mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH,
-                          options.interpolation_filter);
+                          adjusted_opts.interpolation_filter);
     mod->set_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT,
-                          options.stereo_separation);
+                          adjusted_opts.stereo_separation);
+    
+    // Update the stored options with adjusted values
+    const_cast<AudioOptions&>(options) = adjusted_opts;
   }
 
   void extractStems(const std::string &output_dir) {
@@ -477,6 +486,11 @@ AudioOptions parseArguments(int argc, const char *const argv[],
       std::cout << "Supported output formats: WAV, FLAC, Vorbis, Opus\n";
       exit(0);
     }
+  }
+
+  // Set default sample rate to 48000 for opus format if not explicitly set by user
+  if (opts.output_format == "opus" && opts.sample_rate == 44100) {
+    opts.sample_rate = 48000;  // Opus default sample rate
   }
 
   return opts;
