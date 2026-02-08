@@ -43,8 +43,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 struct AudioOptions {
   int sample_rate = 44100;
-  int channels = 2;                  // Stereo
-  int interpolation_filter = 4;      // cubic interpolation (sinc-like)
+  int channels = 2;             // Stereo
+  int interpolation_filter = 4; // cubic interpolation (sinc-like)
+  int stereo_separation =
+      100; // stereo separation in percent [0,200], default 100
   std::string output_format = "wav"; // wav, flac, opus, vorbis
   int bit_depth = 16;                // for lossless formats
   int opus_bitrate = 128;            // kbps for opus
@@ -71,6 +73,8 @@ public:
     // Set up audio parameters
     mod->set_render_param(openmpt::module::RENDER_INTERPOLATIONFILTER_LENGTH,
                           options.interpolation_filter);
+    mod->set_render_param(openmpt::module::RENDER_STEREOSEPARATION_PERCENT,
+                          options.stereo_separation);
   }
 
   void extractStems(const std::string &output_dir) {
@@ -440,6 +444,13 @@ AudioOptions parseArguments(int argc, const char *const argv[],
             "Invalid vorbis quality: " + std::to_string(opts.vorbis_quality) +
             " (0-10 supported)");
       }
+    } else if (arg == "--stereo-separation" && i + 1 < argc) {
+      opts.stereo_separation = std::stoi(argv[++i]);
+      if (opts.stereo_separation < 0 || opts.stereo_separation > 200) {
+        throw std::runtime_error("Invalid stereo separation: " +
+                                 std::to_string(opts.stereo_separation) +
+                                 " (0-200 supported)");
+      }
     } else if (arg == "--help") {
       std::cout << "Usage: " << argv[0] << " [OPTIONS]\n";
       std::cout << "Options:\n";
@@ -458,6 +469,8 @@ AudioOptions parseArguments(int argc, const char *const argv[],
                    "formats (16 or 24, default: 16)\n";
       std::cout << "  --vorbis-quality LEVEL     Vorbis quality level (0-10, "
                    "default: 5)\n";
+      std::cout << "  --stereo-separation PERCENT Stereo separation in percent "
+                   "(0-200, default: 100)\n";
       std::cout << "  --help                     Show this help\n";
       std::cout << "\nSupported input formats: MOD, XM, IT, S3M, and other "
                    "tracker formats supported by libopenmpt\n";
